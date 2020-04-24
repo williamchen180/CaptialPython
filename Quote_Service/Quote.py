@@ -1,6 +1,7 @@
 # 先把API com元件初始化
 import os
 import tkinter as tk
+import time
 
 # 第一種讓群益API元件可導入讓Python code使用的方法
 #import win32com.client 
@@ -35,8 +36,16 @@ import Config
 
 # 顯示各功能狀態用的function
 def WriteMessage(strMsg,listInformation):
+
+    tm = time.localtime(time.time())
+    datestr = time.strftime("%Y-%m-%d", tm)
+    datetime = time.strftime("%Y-%m-%d %H:%M:%S", tm)
+    with open('message-' + datestr + '.txt', 'a+') as f:
+        f.write(datetime + ' ' + strMsg + '\n')
+
     listInformation.insert('end', strMsg)
     listInformation.see('end')
+
 def SendReturnMessage(strType, nCode, strMessage,listInformation):
     GetMessage(strType, nCode, strMessage,listInformation)
 def GetMessage(strType,nCode,strMessage,listInformation):
@@ -65,6 +74,7 @@ class FrameLogin(Frame):
         self.labelID.grid(column=0,row=0)
             #輸入框
         self.textID = Entry(self)
+        self.textID.insert(END, 'H121933940')
         self.textID["width"] = 50
         self.textID.grid(column = 1, row = 0)
 
@@ -76,6 +86,7 @@ class FrameLogin(Frame):
         self.labelPassword.grid(column = 2, row = 0)
             #輸入框
         self.textPassword = Entry(self)
+        self.textPassword.insert(END,'234wersdfxcv')
         self.textPassword["width"] = 50
         self.textPassword['show'] = '*'
         self.textPassword.grid(column = 3, row = 0)
@@ -111,10 +122,14 @@ class FrameLogin(Frame):
             if(m_nCode==0):
                 Global_ID["text"] =  self.textID.get().replace(' ','')
                 WriteMessage("登入成功",self.listInformation)
+                stateM.set_state(stateM.st_logined)
             else:
                 WriteMessage(m_nCode,self.listInformation)
+                stateM.set_state(stateM.st_login_failed)
         except Exception as e:
             messagebox.showerror("error！",e)
+            stateM.set_state(stateM.st_login_failed)
+
 
 # 報價連線的按鈕
 class FrameQuote(Frame):
@@ -1273,6 +1288,8 @@ class SKQuoteLibEvents:
             Gobal_Best5TreeView2.insert('', i, values=(Gobal_Best5TreeViewQ_Information2[i], Gobal_Best5TreeViewP_Information2[i]/100))
 
     def OnNotifyKLineData(self,bstrStockNo,bstrData):
+        with open('KLineData.txt', 'a+') as f:
+            f.write(bstrData + '\n')
         cutData = bstrData.split(',')
         strMsg = bstrStockNo,bstrData
         WriteMessage(strMsg,Gobal_KLine_ListInformation)
@@ -1359,6 +1376,68 @@ SKReplyEvent = SKReplyLibEvent()
 SKReplyLibEventHandler = comtypes.client.GetEvents(skR, SKReplyEvent)
 
 
+class StateM():
+    def __init__(self):
+
+        self.st_start = "state start"
+        self.st_logining = "state logining"
+        self.st_logined = "state logined"
+        self.st_login_failed = "state login failed"
+        self.st_quote_connecting = "state quote connecting"
+        self.st_quote_connected = "state quote connected"
+        self.st_quote_connection_failed = "state quote connection failed"
+
+        self.state = self.st_start
+        self.ticks = 0
+
+    def counts(self):
+        self.ticks = self.ticks + 1
+        return self.ticks
+
+    def set_state(self, state):
+        print(state)
+        self.state = state
+        if state == self.st_start:
+            self.counts = 0
+
+    def is_state(self, state):
+        return self.state == state
+
+
+def timer_function():
+    tm = time.localtime(time.time())
+    result = time.strftime("%Y/%m/%d %H:%M:%S", tm)
+    print(result)
+
+    root.after(1000, timer_function)
+    ret = stateM.counts()
+    if ret < 5:
+        return
+
+    if stateM.is_state(stateM.st_start):
+        stateM.set_state(stateM.st_logining)
+        frame.buttonLogin_Click()
+
+    if stateM.is_state(stateM.st_logining):
+        pass
+
+    if stateM.is_state(stateM.st_logined):
+        pass
+
+    if stateM.is_state(stateM.st_login_failed):
+        pass
+
+    if stateM.is_state(stateM.st_quote_connecting):
+        pass
+
+    if stateM.is_state(stateM.st_quote_connected):
+        pass
+
+    if stateM.is_state(stateM.st_quote_connection_failed):
+        pass
+
+
+
 if __name__ == '__main__':
     #Globals.initialize()
     root = Tk()
@@ -1366,11 +1445,14 @@ if __name__ == '__main__':
 
     
     # Center
-    FrameLogin(master = root)
+    frame = FrameLogin(master = root)
 
     #TabControl
     root.TabControl = Notebook(root)
     root.TabControl.add(FrameQuote(master = root),text="報價功能")
     root.TabControl.grid(column = 0, row = 2, sticky = 'ew', padx = 10, pady = 10)
+
+    stateM = StateM()
+    root.after(1000, timer_function)
 
     root.mainloop()
